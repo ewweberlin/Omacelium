@@ -64,7 +64,7 @@ So:
 - **Community mesh** — anyone can be serving your request. ✗
 
 Omacelium therefore defaults to private/standalone, never ships community mode
-as "private" ([SECURITY.md](SECURITY.md) derives and tests this), and shows a
+as "private" (see the security notes in this README), and shows a
 consent screen before any mesh mode.
 
 ## Configuration
@@ -91,9 +91,6 @@ silently change ports.
 
 ## Architecture
 
-- [AGENTS.md](AGENTS.md) — spec + verified upstream facts
-- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) — resolved decisions, contracts, and the M0–M5 build order
-- [SECURITY.md](SECURITY.md) — what each mode actually guarantees
 - `State.js` / `MeshApi.js` / `Settings.js` — pure logic, unit-testable without QML
 - `bin/omacelium-node` — POSIX `sh` CLI: probe/diagnose the node from a terminal
 
