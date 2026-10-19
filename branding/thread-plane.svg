@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#1B2233"/>
+  <g stroke="#3FD0C9" stroke-width="2" fill="none" opacity="0.9">
+    <path d="M12 40 L28 24 L44 40 L28 56 Z"/>
+    <path d="M20 32 L36 16 L52 32"/>
+    <path d="M4 32 L12 40 L20 32"/>
+    <path d="M28 8 L12 24 L28 40 L44 24"/>
+  </g>
+  <!-- escaping accent strand -->
+  <path d="M12 56 L28 40 L44 56 L58 44" stroke="#F2A33C" stroke-width="3"
+        fill="none" stroke-linecap="round"/>
+</svg>
