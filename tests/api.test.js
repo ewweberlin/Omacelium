@@ -54,12 +54,17 @@ test("probe failures classify from curl exit codes", () => {
 })
 
 test("readRuntime extracts daemon_state and capability booleans safely", () => {
+    // Shape per the real v0.78.1 capture: booleans nested under
+    // runtime.capabilities.*, not flat on runtime (docs/fixtures/…).
     const info = MeshApi.readRuntime({
         runtime: {
             daemon_state: "ready_serving",
-            worker_capable: true, local_serving: true,
-            proxying: false, plugin_ingress: false,
-            accepting_local: true, accepting_remote: true
+            capabilities: {
+                worker_capable: true, local_serving: true,
+                proxying: false, plugin_ingress: false,
+                accepting_local: true, accepting_remote: true,
+                runtime_events: { version: 1, endpoint: "/api/runtime/events/v1" }
+            }
         }
     })
     assert.equal(info.daemonState, "ready_serving")
@@ -67,6 +72,16 @@ test("readRuntime extracts daemon_state and capability booleans safely", () => {
         workerCapable: true, localServing: true, proxying: false,
         pluginIngress: false, acceptingLocal: true, acceptingRemote: true
     })
+    assert.equal(info.runtimeEvents.endpoint, "/api/runtime/events/v1")
+
+    // Old-plan flat shape must NOT be read as truth (booleans stay false).
+    const flat = MeshApi.readRuntime({
+        runtime: { daemon_state: "ready_idle",
+            accepting_local: true, worker_capable: true }
+    })
+    assert.equal(flat.capabilities.acceptingLocal, false)
+    assert.equal(flat.capabilities.workerCapable, false)
+    assert.equal(flat.runtimeEvents, null)
 
     const broken = MeshApi.readRuntime(null)
     assert.equal(broken.daemonState, "")

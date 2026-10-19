@@ -69,7 +69,31 @@ mesh-llm installed (plan §7 makes that a user-confirmed step).
 - `quickshell.qmlscanner` logs "Module path … outside of the config folder"
   for every symlinked plugin dir (`dev.git`, quickswitch included) — benign.
 
-## Verified acceptance gates
+## Contract facts captured on the live node (the M0 gate)
+
+Capture: `docs/fixtures/api-status-v0.78.1-client.json` — sanitized live
+`GET :3131/api/status` from v0.78.1 run as
+`mesh-llm serve --client --headless --no-default-plugins` on this machine
+(GTX 1070, 16 GB RAM; install was the user-side extract of the official
+`mesh-llm-0.78.1-arch-amd64-vulkan.pkg.tar.zst`, checksum-verified, into
+`~/.local/opt`, since the system needed no root). Sanitizations: invite token
+(projects relay + CGNAT/public IP candidates), node id, pid.
+
+Confirmed against reality:
+
+- `runtime.daemon_state: "ready_idle"` for a `--client` node; `node_state:
+  "client"`, `is_host/is_client` etc. sit top-level.
+- **Capability booleans live in `runtime.capabilities.*`, NOT flat on
+  `runtime.*`** (`worker_capable`, `local_serving`, `proxying`, `plugin_ingress`,
+  `accepting_local`, `accepting_remote`) — plan §4's flat listing was
+  imprecise; `readRuntime` was fixed after the capture (this is exactly what
+  the capture-before-modeling gate is for).
+- `capabilities.runtime_events` nested alongside the booleans: SSE endpoint
+  `/api/runtime/events/v1`, `{version:1}` — record for M1+ event streams.
+- Top-level extras the panel can read directly once modeled: `my_vram_gb`,
+  `my_memory` (system/total/reserve bytes), `gpus` (empty for a client node),
+  `peers`, `wakeable_nodes`, `model_size_gb`, `inflight_requests`,
+  `mesh_id`, `local_instances[].{pid,is_self}`.
 
 | Gate | Result |
 | --- | --- |
@@ -79,9 +103,10 @@ mesh-llm installed (plan §7 makes that a user-confirmed step).
 | `serviceFor(own id)` from the widget | live: panel state + clearthrough toggle |
 | Settings round-trip (CLI → UI) | live: 50% → 70% + Mesh on reflected instantly |
 | Settings round-trip (UI → shell.json) | live: full merged object written |
-| `node --test` | 16/16 pass |
+| `node --test` | 21/21 pass (incl. live-capture contract tests) |
 | Bar + panel render, correct state | live (desktop screenshots) |
-| `/api/status` capture | **open — needs mesh-llm installed** |
+| `/api/status` capture | **done** — docs/fixtures/api-status-v0.78.1-client.json |
+| End-to-end with a real node | live: bar went to "mesh on" while the daemon ran |
 
 ## Deliberately deferred to capture first
 

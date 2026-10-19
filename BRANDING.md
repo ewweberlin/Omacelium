@@ -25,3 +25,10 @@ Branching hyphae (two-fork pattern) growing from a filled rounded-square center 
 Palette: loam bark `#241E2E` (badge), pale beige `#E7DCC8` (hyphae), amber `#F2A33C` (spores + center node).
 
 Full details: `branding/branding-mycelium.md`.
+
+## Drop 2026-10-20: organic hyphal web (Marketina)
+New icons in `branding/drops/`, more organic and mycelium-network-native:
+- `organic-hyphal-web.svg` — 64px badge. Replaces the straight two-fork branches with curved, tapering hyphae and adds an **anastomosis loop** (two hyphae fusing back into one), the signature mycelium-network shape. Capillaries at stroke 1.4 px, main hyphae 2.5 px round-cap, spores r=2.0–3.4, organic blob base node instead of the rounded square. Same palette.
+- `organic-hyphal-web-mono.svg` — 16 px bar glyph, `currentColor`, simplified (capillaries dropped, loop reduced to one cell).
+
+Awaiting adoption: if approved, these supersede `assets/hyphal-node.svg` / `-mono.svg` (which then move to provenance alongside `node-knot` / `thread-plane`).

@@ -1,0 +1,184 @@
+{
+  "api_port": 9337,
+  "available_models": [],
+  "discovery_scope": "public",
+  "discovery_source": "nostr-relay",
+  "draft_name": null,
+  "first_joined_mesh_ts": 1792453484620,
+  "gpus": [],
+  "hosted_models": [],
+  "inflight_requests": 0,
+  "is_client": true,
+  "is_host": false,
+  "latest_version": null,
+  "launch_goose": null,
+  "launch_pi": null,
+  "llama_ready": false,
+  "local_instances": [
+    {
+      "api_port": 9337,
+      "is_self": true,
+      "pid": 0,
+      "runtime_dir": "",
+      "started_at_unix": 0,
+      "version": "0.78.1"
+    }
+  ],
+  "logging": {
+    "artifact_capture_available": false,
+    "artifact_capture_ready": false,
+    "capture_mode": "metadata_only",
+    "cleanup": {
+      "last_deleted_count": 0,
+      "last_outcome": "completed",
+      "shutdown_timeouts": 0,
+      "state": "running"
+    },
+    "metadata_available": true,
+    "metadata_state": "ready",
+    "persistence": {
+      "failures": 0,
+      "outstanding": 0,
+      "queue_drops": 0,
+      "shutdown_losses": 0,
+      "state": "running"
+    }
+  },
+  "mesh_discovery_mode": "nostr",
+  "mesh_id": "9aec5fedb415ea4078aa684431f1e581",
+  "model_name": "",
+  "model_size_gb": 0.0,
+  "models": [],
+  "my_hostname": "omarchy",
+  "my_is_soc": false,
+  "my_memory": {
+    "configured_reserve_bytes": 8476688384,
+    "platform_reserve_bytes": 0,
+    "ram_offload_bytes": 0,
+    "reserved_bytes": 113246208,
+    "system_ram_bytes": 16700329984,
+    "total_bytes": 8589934592,
+    "usable_bytes": 0
+  },
+  "my_vram_gb": 0.0,
+  "node_id": "<redacted>",
+  "node_state": "client",
+  "node_status": "Client",
+  "nostr_discovery": false,
+  "owner": {
+    "status": "unsigned",
+    "verified": false
+  },
+  "peers": [],
+  "plugin_frame_telemetry": {
+    "source_mismatch_total": 0
+  },
+  "publication_state": "private",
+  "release_attestation": {
+    "artifact_digest": "sha256:5ec59a313aad7aed5571e00a66c2b4cae2f5987b80f953e59ee9d51808cc6d0f",
+    "build_id": "mesh-llm-5ec59a313aad",
+    "commit": "70238ad1048498b24c524453800599b591131d35",
+    "node_version": "0.78.1",
+    "signer_key_id": "ed25519:8266cc52d104c663fa19d139e32dc169776728b0fe9d17f89cc6917aaaa23ff1",
+    "status": "valid",
+    "target_triple": "x86_64-linux",
+    "verified": true
+  },
+  "requested_models": [],
+  "routing_affinity": {
+    "evicted": 0,
+    "learned": 0,
+    "prefix_enabled": true,
+    "prefix_entries": 0,
+    "prefix_hits": 0,
+    "prefix_lookups": 0,
+    "prefix_misses": 0,
+    "prefix_routes": 0,
+    "prefix_stale": 0,
+    "reservation_active": 0,
+    "session_routes": 0,
+    "sticky_enabled": true,
+    "sticky_routes": 0,
+    "target_reputation": {
+      "penalized_targets": 0,
+      "routes_penalized": 0
+    }
+  },
+  "routing_metrics": {
+    "attempt_context_overflow_count": 0,
+    "attempt_reject_count": 0,
+    "attempt_timeout_count": 0,
+    "attempt_unavailable_count": 0,
+    "avg_attempt_ms": 0.0,
+    "avg_queue_wait_ms": 0.0,
+    "completion_tokens_observed": 0,
+    "failover_count": 0,
+    "local_node": {
+      "avg_attempt_ms": 0.0,
+      "avg_queue_wait_ms": 0.0,
+      "completion_tokens_observed": 0,
+      "current_inflight_requests": 0,
+      "endpoint_attempt_count": 0,
+      "local_attempt_count": 0,
+      "peak_inflight_requests": 0,
+      "remote_attempt_count": 0,
+      "throughput_samples": 0
+    },
+    "pressure": {
+      "endpoint_request_count": 0,
+      "endpoint_service_share": 0.0,
+      "fronted_request_count": 0,
+      "local_service_share": 0.0,
+      "locally_served_request_count": 0,
+      "remote_service_share": 0.0,
+      "remotely_served_request_count": 0
+    },
+    "request_count": 0,
+    "retry_count": 0,
+    "success_rate": 0.0,
+    "successful_requests": 0,
+    "throughput_samples": 0
+  },
+  "runtime": {
+    "backend": "skippy",
+    "capabilities": {
+      "accepting_local": true,
+      "accepting_remote": true,
+      "local_serving": false,
+      "plugin_ingress": false,
+      "proxying": false,
+      "runtime_events": {
+        "cursor": "rt1",
+        "endpoint": "/api/runtime/events/v1",
+        "version": 1
+      },
+      "worker_capable": false
+    },
+    "daemon_state": "ready_idle",
+    "intent_summary": {
+      "durable_count": 0,
+      "session_count": 0
+    },
+    "models": [],
+    "openai_guardrails": {
+      "max_structured_retries": 2,
+      "max_tool_retries": 1,
+      "mode": "disabled",
+      "retry_exhaustion": "error",
+      "small_model_policy": "small_models_only",
+      "small_param_threshold_b": 9.0,
+      "streaming": "pass_through",
+      "target": "skippy"
+    },
+    "runtime_events": {
+      "active_warning_count": 0,
+      "diagnostics_degraded": false,
+      "fatal": false,
+      "node_state": "starting"
+    }
+  },
+  "serving_models": [],
+  "token": "<redacted: invite token incl. relay + local/public IP candidates>",
+  "version": "0.78.1",
+  "wakeable_nodes": []
+}
