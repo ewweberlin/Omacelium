@@ -1,0 +1,78 @@
+#!/bin/sh
+# Omacelium node helper.
+#
+# M0 scope: read-only diagnostics against the Mesh-LLM management API. Process
+# supervision (`start`), preflight (`precheck`), and orphan reaping land in
+# M1 per IMPLEMENTATION_PLAN.md §7.
+#
+# Everything here is POSIX sh and runs from the plugin directory; state goes to
+# ~/.local/state/omarchy/ewweberlin.omacelium/ with 0700 dirs / 0600 files, so
+# invite tokens (added in M2) can live there unchanged.
+set -u
+
+PLUGIN_ID="ewweberlin.omacelium"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/$PLUGIN_ID"
+CONSOLE_BASE="http://127.0.0.1:3131"
+API_BASE="http://127.0.0.1:9337"
+
+usage() {
+  cat >&2 <<EOF
+usage: omacelium-node capture <probe> [--timeout N]
+       omacelium-node check-live
+probes: api-status (:3131/api/status)  v1-models (:9337/v1/models)
+EOF
+  exit 2
+}
+
+url_for() {
+  case $1 in
+    api-status) printf '%s\n' "$CONSOLE_BASE/api/status" ;;
+    v1-models) printf '%s\n' "$API_BASE/v1/models" ;;
+    *) return 1 ;;
+  esac
+}
+
+# capture <probe> [--timeout N]
+cmd_capture() {
+  [ $# -ge 1 ] || usage
+  probe=${1:-}
+  shift 1 2>/dev/null || true
+  timeout=2
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --timeout)
+        [ $# -ge 2 ] || usage
+        timeout=$2
+        shift 2
+        ;;
+      *) usage ;;
+    esac
+  done
+  url=$(url_for "$probe") || usage
+  mkdir -p "$STATE_DIR" || {
+    echo "omacelium-node: cannot create $STATE_DIR" >&2
+    exit 2
+  }
+  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  out="$STATE_DIR/$probe-capture-$stamp.json"
+  if curl -fsS --max-time "$timeout" "$url" > "$out"; then
+    chmod 600 "$out"
+    printf '%s\n' "$out"
+    exit 0
+  fi
+  rm -f -- "$out"
+  echo "omacelium-node: probe $probe failed (node not reachable?)" >&2
+  exit 1
+}
+
+# check-live: 0 when the console API answers, 1 otherwise. For the service and
+# widget to smoke-test reachability without parsing JSON.
+cmd_check_live() {
+  curl -fsS --max-time 2 "$CONSOLE_BASE/api/status" >/dev/null 2>&1
+}
+
+case ${1:-} in
+  capture) shift; cmd_capture "$@" ;;
+  check-live) cmd_check_live ;;
+  *) usage ;;
+esac

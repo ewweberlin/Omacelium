@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "ewweberlin.omacelium",
+  "name": "Omacelium",
+  "version": "0.1.0",
+  "author": "ewweberlin",
+  "license": "MIT",
+  "description": "Bloom your GPU into the mesh.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omacelium",
+    "description": "Mesh node status and contribution controls",
+    "category": "AI",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "enabled": false,
+      "contributionPct": 50,
+      "hostedModels": [],
+      "meshMode": "public",
+      "agentEndpoint": true,
+      "pauseOnActivity": true
+    },
+    "schema": [
+      {
+        "key": "enabled",
+        "type": "boolean",
+        "label": "Join the mesh",
+        "defaultValue": false
+      },
+      {
+        "key": "contributionPct",
+        "type": "integer",
+        "label": "Contributed GPU memory (%)",
+        "min": 10,
+        "max": 100,
+        "step": 10,
+        "defaultValue": 50
+      },
+      {
+        "key": "meshMode",
+        "type": "enum",
+        "label": "Mesh",
+        "options": [
+          "public",
+          "private"
+        ],
+        "defaultValue": "public"
+      },
+      {
+        "key": "agentEndpoint",
+        "type": "boolean",
+        "label": "Offer local agent endpoint",
+        "defaultValue": true
+      },
+      {
+        "key": "pauseOnActivity",
+        "type": "boolean",
+        "label": "Pause while this machine is in use",
+        "defaultValue": true
+      }
+    ]
+  }
+}
