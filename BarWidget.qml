@@ -42,6 +42,20 @@ BarWidget {
         + (uiState === "offline" && uiStateReason === "foreign"
             ? " (port 3131 taken by another service)" : "")
 
+    // Wish forwarding (M1): entry settings live on the bar slot — the shell
+    // does not inject them into services — so the widget relays the CURRENT
+    // merged settings on mount and on every settings change. The service
+    // reconciles the node process against that wish (plan §3).
+    onServiceChanged: syncWish()
+    onSettingsChanged: syncWish()
+    Component.onCompleted: syncWish()
+
+    function syncWish() {
+        if (!service || typeof service.setWish !== "function") return
+        console.log("[omacelium] widget relays wish:", JSON.stringify(service.mergedSettings(root.settings)))
+        service.setWish(service.mergedSettings(root.settings))
+    }
+
     visible: true
     implicitWidth: buttonRow.implicitWidth
     implicitHeight: barSize

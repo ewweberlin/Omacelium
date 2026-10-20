@@ -1,0 +1,88 @@
+#!/bin/sh
+# Omacelium preflight (plan §2/§3 rule 6): binary, version pin, port, GPU
+# checks in one machine-readable JSON line on stdout.
+#
+#   mesh-preflight [--skip-gpu]
+#
+# Port classification ("free" | "ours" | "foreign"):
+#   free      nothing answers and a bind-test succeeds
+#   ours      the management API answers with a JSON /api/status body
+#   foreign   something answers that is not a mesh-llm console
+# Exit 0 always when checks complete (JSON says the rest); exit 2 on usage.
+set -u
+. "$(dirname "$0")/mesh-lib.sh"
+umask 077
+
+skip_gpu=0
+case ${1:-} in
+  "") ;;
+  --skip-gpu) skip_gpu=1 ;;
+  *) usage >&2; exit 2 ;;
+esac
+
+bin=$(omacelium_resolve_bin) || bin=""
+version=""
+pin_ok=false
+pin_warn=false
+pin_reason="missing"
+if [ -n "$bin" ]; then
+  version=$(omacelium_version "$bin")
+  if [ -n "$version" ]; then
+    our_tag="v$OMACELIUM_PIN" have_tag="v$(printf '%s' "$version" | cut -d. -f1-2)"
+    if [ "$our_tag" = "$have_tag" ]; then
+      pin_ok=true; pin_reason="exact-or-same-minor"
+    elif [ "$(printf '%s' "$version" | cut -d. -f1)" = "$(printf '%s' "$OMACELIUM_PIN" | cut -d. -f1)" ]; then
+      pin_ok=true; pin_warn=true; pin_reason="same-major-drift"
+    else
+      pin_reason="different-major"
+    fi
+  fi
+fi
+
+state_console=$(omacelium_bind_test "$OMACELIUM_CONSOLE_PORT")
+state_api=$(omacelium_bind_test "$OMACELIUM_API_PORT")
+
+if [ "$state_console" = "free" ]; then
+  console_port=free
+else
+  case $(omacelium_console_owner) in
+    ours) console_port=ours ;;
+    foreign) console_port=foreign ;;
+    *) console_port=foreign ;;
+  esac
+fi
+if [ "$state_api" = "free" ]; then
+  api_port=free
+else
+  # Distinguish ours/foreign on the OpenAI port via /v1/models: a mesh-llm
+  # answers with JSON; anything else is foreign.
+  api_body=$(curl -fsS --max-time 2 "http://127.0.0.1:$OMACELIUM_API_PORT/v1/models" 2>/dev/null | head -c 5000)
+  case $api_body in
+    \{*) api_port=ours ;;
+    *) api_port=foreign ;;
+  esac
+fi
+
+gpu_json="null"
+gpu_error=""
+if [ "$skip_gpu" = 0 ] && [ -n "$bin" ]; then
+  gpu_json="$("$bin" gpus --json </dev/null 2>/dev/null | head -c 200000)"
+  case $gpu_json in
+    [0-9\{\[]*) gpu_json=$(printf '%s' "$gpu_json" | omacelium_emit) ;;
+    *) gpu_json="null"; gpu_error="unparsable-or-unavailable" ;;
+  esac
+elif [ "$skip_gpu" = 1 ]; then
+  gpu_error="skipped"
+else
+  gpu_error="no-binary"
+fi
+
+mkdir -p "$OMACELIUM_STATE_DIR" 2>/dev/null || true
+
+printf '{"binary":%s,"version":%s,"pin":{"ok":%s,"warn":%s,"reason":"%s"},"ports":{"console":"%s","api":"%s"},"gpu":%s,"gpu_error":"%s","state_dir":%s}\n' \
+  "$(python3 -c 'import json,sys;sys.stdout.write(json.dumps(sys.argv[1]))' "$bin")" \
+  "$(python3 -c 'import json,sys;sys.stdout.write(json.dumps(sys.argv[1]))' "$version")" \
+  "$pin_ok" "$pin_warn" "$pin_reason" \
+  "$console_port" "$api_port" \
+  "$gpu_json" "$gpu_error" \
+  "$(python3 -c 'import json,sys;sys.stdout.write(json.dumps(sys.argv[1]))' "$OMACELIUM_STATE_DIR")"

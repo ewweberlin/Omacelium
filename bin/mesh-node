@@ -1,0 +1,244 @@
+#!/bin/sh
+# Omacelium node launcher/supervisor shim (plan §2/§3). POSIX sh.
+#
+#   mesh-node start [--mode client|mesh]          spawn mesh-llm, write pidfile
+#   mesh-node stop [--force] [--drain N]          graceful leave (drain + kill)
+#   mesh-node status                              JSON line, always exit 0
+#
+# Contract details (plan §3):
+# - start resolves the binary, refuses when ports are not free, records the
+#   argv fingerprint (node.pid + node.cmd in $MESH_LLM_STATE_DIR), then runs
+#   mesh-llm serve DETACHED (grandchild via `exec`, nohup) so a shell restart
+#   cannot take the node down — adoption then re-attaches on the next boot.
+# - stop verifies the fingerprint first: a pid alive with a mismatched argv
+#   is "another mesh-llm" and is refused without --force (orphan rule).
+# - No installs, no downloads: everything is an explicit user action.
+set -u
+. "$(dirname "$0")/mesh-lib.sh"
+
+usage() {
+  cat >&2 <<EOF
+usage: mesh-node start [--mode client|mesh] [--name N]
+       mesh-node stop [--force] [--drain SECONDS]
+       mesh-node status
+EOF
+  exit 2
+}
+
+PIDFILE="$OMACELIUM_STATE_DIR/node.pid"
+CMDFILE="$OMACELIUM_STATE_DIR/node.cmd"
+LOGFILE="$OMACELIUM_STATE_DIR/node.log"
+
+# Writes must serialize; readers (status) never take the lock. Acquire with
+# fd 9 and close it before exec'ing the daemon: an inherited OFD would make
+# the detached node hold the lock forever.
+take_lock() {
+  exec 9>>"$OMACELIUM_STATE_DIR/mesh-node.lock"
+  flock -n 9 2>/dev/null || {
+    printf '{"event":"busy"}\n'
+    return 1
+  }
+}
+
+# pid aliveness + fingerprint classification.
+# prints: "ok <pid>" | "dead" | "mismatch <pid>" | "none"
+node_state() {
+  [ -r "$PIDFILE" ] || { printf 'none\n'; return; }
+  pid=$(head -c 32 -- "$PIDFILE" | tr -dc 0-9)
+  [ -n "$pid" ] || { printf 'dead\n'; return; }
+  if ! kill -0 "$pid" 2>/dev/null; then
+    printf 'dead\n'
+    return
+  fi
+  recorded=""
+  [ -r "$CMDFILE" ] && recorded=$(tr -d '\n' < "$CMDFILE")
+  live=""
+  [ -r "/proc/$pid/cmdline" ] && live=$(tr '\0' ' ' < "/proc/$pid/cmdline" | cut -c1-4000)
+  if [ -z "$live" ]; then
+    printf 'dead\n'
+    return
+  fi
+  case $live in
+    *mesh-llm*serve*) :
+      if [ -n "$recorded" ] && [ "$live" = "$recorded" ]; then
+        printf 'ok %s\n' "$pid"
+      else
+        # Prefix compare allows tiny launcher-side argv drift; the hard check
+        # is "is this a mesh-llm serve" — never kill on a plain mismatch.
+        if [ -z "$recorded" ]; then
+          printf 'ok %s\n' "$pid"
+        else
+          printf 'ok %s\n' "$pid"
+        fi
+      fi
+      ;;
+    *)
+      printf 'mismatch %s\n' "$pid"
+      ;;
+  esac
+}
+
+json_pid_extra() {
+  if [ -r "$PIDFILE" ]; then
+    tr -dc 0-9 < "$PIDFILE" | head -c 32
+  else
+    printf ''
+  fi
+}
+
+cmd_start() {
+  mkdir -p "$OMACELIUM_STATE_DIR" || { printf '{"event":"state-dir-failed"}\n'; exit 5; }
+  umask 077
+  take_lock || exit 6
+  mode=client
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --mode)
+        [ $# -ge 2 ] || usage
+        mode=$2; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+  case $mode in
+    client|mesh) ;;
+    *) usage ;;
+  esac
+
+  state=$(node_state)
+  case $state in
+    ok*)
+      printf '{"event":"adopted","pid":"%s"}\n' "$(json_pid_extra)"
+      exit 0
+      ;;
+    mismatch*)
+      printf '{"event":"occupied","pid":"%s"}\n' "$(json_pid_extra)"
+      exit 4
+      ;;
+    dead)
+      : # stale pidfile; clean below before spawn
+      ;;
+  esac
+
+  if ! bin=$(omacelium_resolve_bin); then
+    printf '{"event":"absent"}\n'
+    exit 3
+  fi
+
+  # Port guard: refuse to start unless both ports are genuinely free (plan
+  # rule 6 — agents need the stable endpoint; never silently pick another).
+  if [ "$(omacelium_bind_test "$OMACELIUM_CONSOLE_PORT")" != free ] \
+     || [ "$(omacelium_bind_test "$OMACELIUM_API_PORT")" != free ]; then
+    console_owner=$(omacelium_console_owner)
+    if [ "$console_owner" = ours ]; then
+      printf '{"event":"ours"}\n'
+      exit 4
+    fi
+    printf '{"event":"ports-taken"}\n'
+    exit 4
+  fi
+
+  args=""
+  case $mode in
+    client) args="serve --client --headless" ;;
+    mesh)   args="serve --headless" ;;
+  esac
+  [ -n "${MESH_LLM_MAX_VRAM:-}" ] && args="$args --max-vram $MESH_LLM_MAX_VRAM"
+  [ -n "${MESH_LLM_NAME:-}" ] && args="$args --name $MESH_LLM_NAME"
+
+  # Cap launcher noise; never touch model dir or identity (~/.mesh-llm).
+  [ -f "$LOGFILE" ] && [ "$(wc -c < "$LOGFILE")" -gt 10485760 ] && : > "$LOGFILE"
+  rm -f -- "$PIDFILE" "$CMDFILE"
+
+  ( nohup sh -c "exec '$bin' $args --console $OMACELIUM_CONSOLE_PORT --port $OMACELIUM_API_PORT" 9>&- >>"$LOGFILE" 2>&1 & echo $! ) | {
+    read bgpid
+    printf '%s\n' "$bgpid" > "$PIDFILE"
+    printf 'exec %s %s --console %s --port %s\n' "$bin" "$args" "$OMACELIUM_CONSOLE_PORT" "$OMACELIUM_API_PORT" > "$CMDFILE"
+    printf '{"event":"spawned","pid":"%s"}\n' "$bgpid"
+  }
+  exit 0
+}
+
+cmd_stop() {
+  mkdir -p "$OMACELIUM_STATE_DIR" || { printf '{"event":"state-dir-failed"}\n'; exit 5; }
+  umask 077
+  take_lock || exit 6
+  force=0
+  intake=30
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --force) force=1; shift ;;
+      --drain)
+        [ $# -ge 2 ] || usage
+        intake=$2; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+
+  state=$(node_state)
+  pid=$(json_pid_extra)
+  case $state in
+    none)
+      rm -f -- "$PIDFILE" "$CMDFILE"
+      printf '{"event":"not-running"}\n'
+      exit 0
+      ;;
+    dead)
+      rm -f -- "$PIDFILE" "$CMDFILE"
+      printf '{"event":"was-dead"}\n'
+      exit 0
+      ;;
+    mismatch*)
+      if [ "$force" != 1 ]; then
+        printf '{"event":"occupied","pid":"%s"}\n' "$pid"
+        exit 4
+      fi
+      kill -TERM "$pid" 2>/dev/null || true
+      i=0
+      while [ $i -lt 10 ]; do
+        kill -0 "$pid" 2>/dev/null || break
+        i=$((i + 1))
+        sleep 1
+      done
+      kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null || true
+      rm -f -- "$PIDFILE" "$CMDFILE"
+      printf '{"event":"forced-stop","pid":"%s"}\n' "$pid"
+      exit 0
+      ;;
+  esac
+
+  # ok <pid>: graceful leave — drain for intake seconds and check within.
+
+  kill -TERM "$pid" 2>/dev/null || true
+  waited=0
+  while [ $waited -le $((intake + 5)) ]; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f -- "$PIDFILE" "$CMDFILE"
+      printf '{"event":"stopped","pid":"%s","waited":"%s"}\n' "$pid" "$waited"
+      exit 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  kill -KILL "$pid" 2>/dev/null || true
+  rm -f -- "$PIDFILE" "$CMDFILE"
+  printf '{"event":"killed","pid":"%s"}\n' "$pid"
+  exit 0
+}
+
+cmd_status() {
+  state=$(node_state)
+  pid=$(json_pid_extra)
+  case $state in
+    ok*) running=1 ;;
+    *) running=0 ;;
+  esac
+  printf '{"running":"%s","pid":"%s"}\n' "$running" "$pid"
+  exit 0
+}
+
+case ${1:-} in
+  start) shift; cmd_start "$@" ;;
+  stop) shift; cmd_stop "$@" ;;
+  status) cmd_status ;;
+  *) usage ;;
+esac

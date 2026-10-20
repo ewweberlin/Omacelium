@@ -5,7 +5,7 @@ Plugin license: MIT. This repository is unaffiliated with either project.
 
 | | |
 |---|---|
-| **Status** | Early development (M0) — not yet installable from Omarchy |
+| **Status** | Early development (M1 supervisor wired) — not yet installable from Omarchy |
 | **Type** | Omarchy plugin: bar widget + service |
 | **What it does** | Runs a local Mesh-LLM node with a bar icon, a panel, and a stable OpenAI-compatible endpoint |
 | **Requires** | Omarchy (Arch Linux + Hyprland), Mesh-LLM, a GPU with a few GB of VRAM for meaningful contribution |
